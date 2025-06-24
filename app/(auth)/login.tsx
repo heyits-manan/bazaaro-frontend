@@ -9,7 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { TouchableOpacity } from 'react-native-gesture-handler';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -42,9 +42,16 @@ export default function Login() {
       const result = await login(formData.email, formData.password);
 
       if (result.success) {
-        router.replace('/(tabs)');
+        if (user?.role === 'user') {
+          router.replace('/(tabs)/search');
+        } else {
+          router.replace('/(tabs)/store');
+        }
       } else {
-        Alert.alert('Login Failed', result.error || 'Please check your credentials');
+        Alert.alert(
+          'Login Failed',
+          result.error || 'Please check your credentials'
+        );
       }
     } catch (error) {
       Alert.alert('Error', 'Something went wrong. Please try again.');
@@ -76,7 +83,9 @@ export default function Login() {
             <Input
               label="Password"
               value={formData.password}
-              onChangeText={(text) => setFormData({ ...formData, password: text })}
+              onChangeText={(text) =>
+                setFormData({ ...formData, password: text })
+              }
               error={errors.password}
               placeholder="Enter your password"
               isPassword
@@ -91,8 +100,12 @@ export default function Login() {
           </View>
 
           <View style={styles.footer}>
-            <TouchableOpacity onPress={() => router.push('/(auth)/role-selection')}>
-              <Text style={styles.registerLink}>Don't have an account? Sign up</Text>
+            <TouchableOpacity
+              onPress={() => router.push('/(auth)/role-selection')}
+            >
+              <Text style={styles.registerLink}>
+                Don't have an account? Sign up
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

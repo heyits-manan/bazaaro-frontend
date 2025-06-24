@@ -38,93 +38,53 @@ export default function TabLayout() {
           },
         }}
       >
-        {isShopOwner ? (
-          // Shop Owner Tabs
-          <>
-            <Tabs.Screen
-              name="store"
-              options={{
-                title: 'My Store',
-                tabBarIcon: ({ size, color }) => (
-                  <Store size={size} color={color} />
-                ),
-              }}
-            />
-            <Tabs.Screen
-              name="requests"
-              options={{
-                title: 'Requests',
-                tabBarIcon: ({ size, color }) => (
-                  <MessageCircle size={size} color={color} />
-                ),
-              }}
-            />
-            <Tabs.Screen
-              name="profile"
-              options={{
-                title: 'Profile',
-                tabBarIcon: ({ size, color }) => (
-                  <User size={size} color={color} />
-                ),
-              }}
-            />
-            <Tabs.Screen
-              name="search"
-              options={{
-                href: null, // Hide from shop owners
-              }}
-            />
-            <Tabs.Screen
-              name="offers"
-              options={{
-                href: null, // Hide from shop owners
-              }}
-            />
-          </>
-        ) : (
-          // Customer Tabs
-          <>
-            <Tabs.Screen
-              name="search"
-              options={{
-                title: 'Search',
-                tabBarIcon: ({ size, color }) => (
-                  <Search size={size} color={color} />
-                ),
-              }}
-            />
-            <Tabs.Screen
-              name="offers"
-              options={{
-                title: 'Offers',
-                tabBarIcon: ({ size, color }) => (
-                  <MessageCircle size={size} color={color} />
-                ),
-              }}
-            />
-            <Tabs.Screen
-              name="profile"
-              options={{
-                title: 'Profile',
-                tabBarIcon: ({ size, color }) => (
-                  <User size={size} color={color} />
-                ),
-              }}
-            />
-            <Tabs.Screen
-              name="store"
-              options={{
-                href: null, // Hide from customers
-              }}
-            />
-            <Tabs.Screen
-              name="requests"
-              options={{
-                href: null, // Hide from customers
-              }}
-            />
-          </>
-        )}
+        <Tabs.Screen
+          name="search"
+          options={{
+            title: 'Search',
+            tabBarIcon: ({ size, color }) => (
+              <Search size={size} color={color} />
+            ),
+            href: isShopOwner ? null : '/search', // Hide for shop owners
+          }}
+        />
+        <Tabs.Screen
+          name="offers"
+          options={{
+            title: 'Offers',
+            tabBarIcon: ({ size, color }) => (
+              <MessageCircle size={size} color={color} />
+            ),
+            href: isShopOwner ? null : '/offers', // Hide for shop owners
+          }}
+        />
+        <Tabs.Screen
+          name="store"
+          options={{
+            title: 'My Store',
+            tabBarIcon: ({ size, color }) => (
+              <Store size={size} color={color} />
+            ),
+            href: !isShopOwner ? null : '/store', // Hide for customers
+          }}
+        />
+        <Tabs.Screen
+          name="requests"
+          options={{
+            title: 'Requests',
+            tabBarIcon: ({ size, color }) => (
+              <MessageCircle size={size} color={color} />
+            ),
+            href: !isShopOwner ? null : '/requests', // Hide for customers
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Profile',
+            tabBarIcon: ({ size, color }) => <User size={size} color={color} />,
+          }}
+        />
       </Tabs>
     </SearchProvider>
   );

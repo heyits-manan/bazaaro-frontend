@@ -22,6 +22,8 @@ import { socketService } from '../../services/socket';
 import { apiService } from '../../services/api';
 import * as Location from 'expo-location';
 import { Search } from '../../types/api';
+import { Redirect } from 'expo-router';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Function to calculate distance between two points using Haversine formula
 const calculateDistance = (
@@ -44,6 +46,12 @@ const calculateDistance = (
 };
 
 export default function Requests() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user || user.role !== 'shop_owner') {
+    return <Redirect href="/(tabs)/search" />;
+  }
+
   const [requests, setRequests] = useState<Search[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [respondingTo, setRespondingTo] = useState<string | null>(null);
@@ -86,7 +94,21 @@ export default function Requests() {
 
   const setupRealTimeListeners = () => {
     socketService.onNewSearch((searchData) => {
-      setRequests((prev) => [searchData, ...prev]);
+      // Transform the incoming socket data to match the Search type
+      const newSearch = {
+        id: searchData.id,
+        userId: searchData.userId || searchData.user_id,
+        productName: searchData.productName || searchData.product_name,
+        latitude: searchData.latitude,
+        longitude: searchData.longitude,
+        status: searchData.status,
+        selectedOfferId:
+          searchData.selectedOfferId || searchData.selected_offer_id,
+        createdAt: searchData.createdAt || searchData.created_at,
+        category: searchData.category,
+        maxPrice: searchData.maxPrice || searchData.max_price,
+      };
+      setRequests((prev) => [newSearch, ...prev]);
     });
   };
 

@@ -22,7 +22,9 @@ export default function RoleSelection() {
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.header}>
             <Text style={styles.title}>Welcome to Bazaaro</Text>
-            <Text style={styles.subtitle}>Choose your account type to get started</Text>
+            <Text style={styles.subtitle}>
+              Choose your account type to get started
+            </Text>
           </View>
 
           <View style={styles.optionsContainer}>
@@ -34,7 +36,8 @@ export default function RoleSelection() {
                   </View>
                   <Text style={styles.optionTitle}>I'm a Customer</Text>
                   <Text style={styles.optionDescription}>
-                    Search for products and get offers from nearby stores in real-time
+                    Search for products and get offers from nearby stores in
+                    real-time
                   </Text>
                   <View style={styles.features}>
                     <Text style={styles.feature}>• Search for any product</Text>
@@ -57,13 +60,16 @@ export default function RoleSelection() {
                   </View>
                   <Text style={styles.optionTitle}>I'm a Shop Owner</Text>
                   <Text style={styles.optionDescription}>
-                    Manage your store, respond to customer searches, and grow your business
+                    Manage your store, respond to customer searches, and grow
+                    your business
                   </Text>
                   <View style={styles.features}>
                     <Text style={styles.feature}>• Manage your store</Text>
                     <Text style={styles.feature}>• Add products</Text>
                     <Text style={styles.feature}>• Respond to searches</Text>
-                    <Text style={styles.feature}>• Real-time notifications</Text>
+                    <Text style={styles.feature}>
+                      • Real-time notifications
+                    </Text>
                   </View>
                   <View style={styles.arrowContainer}>
                     <ArrowRight size={20} color="#059669" />
@@ -74,7 +80,9 @@ export default function RoleSelection() {
           </View>
 
           <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-            <Text style={styles.loginLink}>Already have an account? Sign in</Text>
+            <Text style={styles.loginLink}>
+              Already have an account? Sign in
+            </Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>

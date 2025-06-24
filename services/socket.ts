@@ -5,10 +5,11 @@ const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL;
 
 class SocketService {
   private socket: Socket | null = null;
+  private pendingListeners: Array<() => void> = [];
 
   async connect() {
     const token = await AsyncStorage.getItem('token');
-    
+
     this.socket = io(SOCKET_URL, {
       auth: {
         token,
@@ -17,6 +18,9 @@ class SocketService {
 
     this.socket.on('connect', () => {
       console.log('Connected to server');
+      // Register any pending listeners
+      this.pendingListeners.forEach((fn) => fn());
+      this.pendingListeners = [];
     });
 
     this.socket.on('disconnect', () => {
@@ -37,6 +41,8 @@ class SocketService {
   onNewSearch(callback: (searchData: any) => void) {
     if (this.socket) {
       this.socket.on('new_search', callback);
+    } else {
+      this.pendingListeners.push(() => this.onNewSearch(callback));
     }
   }
 
@@ -44,6 +50,8 @@ class SocketService {
   onNewOffer(callback: (offerData: any) => void) {
     if (this.socket) {
       this.socket.on('new_offer', callback);
+    } else {
+      this.pendingListeners.push(() => this.onNewOffer(callback));
     }
   }
 
@@ -51,6 +59,8 @@ class SocketService {
   onOfferSelected(callback: (selectionData: any) => void) {
     if (this.socket) {
       this.socket.on('offer_selected', callback);
+    } else {
+      this.pendingListeners.push(() => this.onOfferSelected(callback));
     }
   }
 
@@ -59,6 +69,7 @@ class SocketService {
     if (this.socket) {
       this.socket.removeAllListeners();
     }
+    this.pendingListeners = [];
   }
 
   getSocket() {

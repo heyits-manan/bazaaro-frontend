@@ -21,6 +21,9 @@ export default function Search() {
   );
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [useManualLocation, setUseManualLocation] = useState(false);
+  const [manualLatitude, setManualLatitude] = useState('');
+  const [manualLongitude, setManualLongitude] = useState('');
 
   useEffect(() => {
     getCurrentLocation();
@@ -53,17 +56,33 @@ export default function Search() {
       return;
     }
 
-    if (!location) {
-      Alert.alert('Error', 'Location is required to search for nearby stores');
-      return;
+    let latitude: number | undefined;
+    let longitude: number | undefined;
+    if (useManualLocation) {
+      latitude = parseFloat(manualLatitude);
+      longitude = parseFloat(manualLongitude);
+      if (isNaN(latitude) || isNaN(longitude)) {
+        Alert.alert('Error', 'Please provide valid latitude and longitude');
+        return;
+      }
+    } else {
+      if (!location) {
+        Alert.alert(
+          'Error',
+          'Location is required to search for nearby stores'
+        );
+        return;
+      }
+      latitude = location.coords.latitude;
+      longitude = location.coords.longitude;
     }
 
     setLoading(true);
     try {
       const searchData = {
         product_name: searchQuery.trim(),
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
+        latitude,
+        longitude,
       };
 
       console.log('Sending search request with data:', searchData);
@@ -112,10 +131,14 @@ export default function Search() {
               <MapPin size={20} color="#6366f1" />
               <Text style={styles.locationTitle}>Your Location</Text>
             </View>
-            {location ? (
+            {!useManualLocation && location ? (
               <Text style={styles.locationText}>
                 Location found • {location.coords.latitude.toFixed(4)},{' '}
                 {location.coords.longitude.toFixed(4)}
+              </Text>
+            ) : useManualLocation ? (
+              <Text style={styles.locationText}>
+                Manual location entry enabled
               </Text>
             ) : (
               <Text style={styles.locationText}>
@@ -126,14 +149,33 @@ export default function Search() {
             )}
             <Button
               title={
-                locationLoading ? 'Getting Location...' : 'Update Location'
+                useManualLocation
+                  ? 'Use Device Location'
+                  : 'Enter Location Manually'
               }
               variant="outline"
               size="small"
-              onPress={getCurrentLocation}
-              loading={locationLoading}
+              onPress={() => setUseManualLocation((prev) => !prev)}
               style={styles.locationButton}
             />
+            {useManualLocation && (
+              <View style={{ marginTop: 12 }}>
+                <Input
+                  label="Latitude"
+                  value={manualLatitude}
+                  onChangeText={setManualLatitude}
+                  placeholder="Enter latitude"
+                  keyboardType="numeric"
+                />
+                <Input
+                  label="Longitude"
+                  value={manualLongitude}
+                  onChangeText={setManualLongitude}
+                  placeholder="Enter longitude"
+                  keyboardType="numeric"
+                />
+              </View>
+            )}
           </View>
         </Card>
 

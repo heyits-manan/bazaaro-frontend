@@ -181,11 +181,12 @@ class ApiService {
 
   async selectOffer(
     searchId: string,
-    offerId: string
+    offerId: number | string
   ): Promise<ApiResponse<any>> {
     return this.request(`/search/${searchId}/select`, {
       method: 'POST',
-      body: JSON.stringify({ offer_id: offerId }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ offerId }),
     });
   }
 

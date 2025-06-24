@@ -18,20 +18,6 @@ import { socketService } from '../../services/socket';
 import { Offer } from '../../types/api';
 import { useSearch } from '../../contexts/SearchContext';
 
-interface OffersResponse {
-  offers: Offer[];
-  search: {
-    id: string;
-    userId: number;
-    productName: string;
-    latitude: string;
-    longitude: string;
-    status: string;
-    selectedOfferId: string | null;
-    createdAt: string;
-  };
-}
-
 export default function Offers() {
   const { searchId: paramSearchId } = useLocalSearchParams<{
     searchId?: string;
@@ -100,7 +86,7 @@ export default function Offers() {
       console.log('Offers response:', response);
       if (response.success && response.data) {
         console.log('Setting offers:', response.data);
-        setOffers(response?.data?.offers || []);
+        setOffers((response.data as any)?.offers || response.data || []);
       } else {
         console.error('Failed to load offers:', response.error);
         setOffers([]);

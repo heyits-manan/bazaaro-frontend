@@ -7,11 +7,19 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { apiService } from '../../services/api';
 import * as Location from 'expo-location';
+import { Redirect } from 'expo-router';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function Store() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (!user || user.role !== 'shop_owner') {
+    return <Redirect href="/(tabs)/search" />;
+  }
+
   const [showStoreForm, setShowStoreForm] = useState(false);
   const [showProductForm, setShowProductForm] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [storeLoading, setStoreLoading] = useState(false);
   const [storeData, setStoreData] = useState({
     name: '',
     description: '',
@@ -31,12 +39,15 @@ export default function Store() {
       return;
     }
 
-    setLoading(true);
+    setStoreLoading(true);
     try {
       // Get current location for the store
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission denied', 'Location permission is required to create a store');
+        Alert.alert(
+          'Permission denied',
+          'Location permission is required to create a store'
+        );
         return;
       }
 
@@ -63,7 +74,7 @@ export default function Store() {
     } catch (error) {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
-      setLoading(false);
+      setStoreLoading(false);
     }
   };
 
@@ -73,7 +84,7 @@ export default function Store() {
       return;
     }
 
-    setLoading(true);
+    setStoreLoading(true);
     try {
       const response = await apiService.addProduct({
         ...productData,
@@ -96,7 +107,7 @@ export default function Store() {
     } catch (error) {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
-      setLoading(false);
+      setStoreLoading(false);
     }
   };
 
@@ -128,14 +139,18 @@ export default function Store() {
                 <Input
                   label="Store Name *"
                   value={storeData.name}
-                  onChangeText={(text) => setStoreData({ ...storeData, name: text })}
+                  onChangeText={(text) =>
+                    setStoreData({ ...storeData, name: text })
+                  }
                   placeholder="Enter store name"
                 />
 
                 <Input
                   label="Description"
                   value={storeData.description}
-                  onChangeText={(text) => setStoreData({ ...storeData, description: text })}
+                  onChangeText={(text) =>
+                    setStoreData({ ...storeData, description: text })
+                  }
                   placeholder="Brief description of your store"
                   multiline
                   numberOfLines={3}
@@ -144,7 +159,9 @@ export default function Store() {
                 <Input
                   label="Address *"
                   value={storeData.address}
-                  onChangeText={(text) => setStoreData({ ...storeData, address: text })}
+                  onChangeText={(text) =>
+                    setStoreData({ ...storeData, address: text })
+                  }
                   placeholder="Full store address"
                   multiline
                   numberOfLines={2}
@@ -153,7 +170,9 @@ export default function Store() {
                 <Input
                   label="Phone Number *"
                   value={storeData.phone}
-                  onChangeText={(text) => setStoreData({ ...storeData, phone: text })}
+                  onChangeText={(text) =>
+                    setStoreData({ ...storeData, phone: text })
+                  }
                   placeholder="Store contact number"
                   keyboardType="phone-pad"
                 />
@@ -166,9 +185,9 @@ export default function Store() {
                     style={styles.cancelButton}
                   />
                   <Button
-                    title={loading ? 'Creating...' : 'Create Store'}
+                    title={storeLoading ? 'Creating...' : 'Create Store'}
                     onPress={handleCreateStore}
-                    loading={loading}
+                    loading={storeLoading}
                     style={styles.createButton}
                   />
                 </View>
@@ -194,21 +213,27 @@ export default function Store() {
                 <Input
                   label="Product Name *"
                   value={productData.name}
-                  onChangeText={(text) => setProductData({ ...productData, name: text })}
+                  onChangeText={(text) =>
+                    setProductData({ ...productData, name: text })
+                  }
                   placeholder="Enter product name"
                 />
 
                 <Input
                   label="Category *"
                   value={productData.category}
-                  onChangeText={(text) => setProductData({ ...productData, category: text })}
+                  onChangeText={(text) =>
+                    setProductData({ ...productData, category: text })
+                  }
                   placeholder="e.g., Electronics, Clothing"
                 />
 
                 <Input
                   label="Price ($) *"
                   value={productData.price}
-                  onChangeText={(text) => setProductData({ ...productData, price: text })}
+                  onChangeText={(text) =>
+                    setProductData({ ...productData, price: text })
+                  }
                   placeholder="0.00"
                   keyboardType="numeric"
                 />
@@ -216,7 +241,9 @@ export default function Store() {
                 <Input
                   label="Description"
                   value={productData.description}
-                  onChangeText={(text) => setProductData({ ...productData, description: text })}
+                  onChangeText={(text) =>
+                    setProductData({ ...productData, description: text })
+                  }
                   placeholder="Product description"
                   multiline
                   numberOfLines={3}
@@ -230,9 +257,9 @@ export default function Store() {
                     style={styles.cancelButton}
                   />
                   <Button
-                    title={loading ? 'Adding...' : 'Add Product'}
+                    title={storeLoading ? 'Adding...' : 'Add Product'}
                     onPress={handleAddProduct}
-                    loading={loading}
+                    loading={storeLoading}
                     style={styles.createButton}
                   />
                 </View>
@@ -252,10 +279,9 @@ export default function Store() {
         <Card style={styles.tipCard}>
           <Text style={styles.tipTitle}>💡 Store Management Tips</Text>
           <Text style={styles.tipText}>
-            • Add detailed product descriptions{'\n'}
-            • Keep your inventory updated{'\n'}
-            • Respond quickly to customer requests{'\n'}
-            • Set competitive prices
+            • Add detailed product descriptions{'\n'}• Keep your inventory
+            updated{'\n'}• Respond quickly to customer requests{'\n'}• Set
+            competitive prices
           </Text>
         </Card>
       </ScrollView>
@@ -287,8 +313,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
   },
-  section: {
-  },
+  section: {},
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -300,8 +325,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#374151',
   },
-  addButton: {
-  },
+  addButton: {},
   setupContainer: {
     alignItems: 'center',
     padding: 20,
@@ -313,8 +337,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 22,
   },
-  setupButton: {
-  },
+  setupButton: {},
   form: {
     marginTop: 16,
   },
