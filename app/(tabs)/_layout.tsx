@@ -1,6 +1,12 @@
 import React from 'react';
 import { Tabs, Redirect } from 'expo-router';
-import { Search, Store, User, MessageCircle } from 'lucide-react-native';
+import {
+  Search,
+  Store,
+  User,
+  MessageCircle,
+  History,
+} from 'lucide-react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { SearchProvider } from '../../contexts/SearchContext';
 
@@ -76,6 +82,26 @@ export default function TabLayout() {
               <MessageCircle size={size} color={color} />
             ),
             href: !isShopOwner ? null : '/requests', // Hide for customers
+          }}
+        />
+        <Tabs.Screen
+          name="store-offers"
+          options={{
+            title: 'My Offers',
+            tabBarIcon: ({ size, color }) => (
+              <Store size={size} color={color} />
+            ),
+            href: !isShopOwner ? null : '/store-offers', // Hide for customers
+          }}
+        />
+        <Tabs.Screen
+          name="my-searches"
+          options={{
+            title: 'My Searches',
+            tabBarIcon: ({ size, color }) => (
+              <History size={size} color={color} />
+            ),
+            href: isShopOwner ? null : '/my-searches', // Hide for shop owners
           }}
         />
         <Tabs.Screen

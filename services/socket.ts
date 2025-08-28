@@ -64,6 +64,24 @@ class SocketService {
     }
   }
 
+  // Listen for offer status updates (accepted/rejected)
+  onOfferStatusUpdate(callback: (updateData: any) => void) {
+    if (this.socket) {
+      this.socket.on('offer_status_update', callback);
+    } else {
+      this.pendingListeners.push(() => this.onOfferStatusUpdate(callback));
+    }
+  }
+
+  // Listen for search status updates (completed/cancelled)
+  onSearchStatusUpdate(callback: (updateData: any) => void) {
+    if (this.socket) {
+      this.socket.on('search_status_update', callback);
+    } else {
+      this.pendingListeners.push(() => this.onSearchStatusUpdate(callback));
+    }
+  }
+
   // Remove listeners
   removeAllListeners() {
     if (this.socket) {

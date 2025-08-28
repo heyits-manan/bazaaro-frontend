@@ -124,18 +124,20 @@ export default function Requests() {
       });
 
       if (response.success && response.data?.searches) {
-        const formattedSearches = response.data.searches.map((search) => ({
-          id: search.id,
-          userId: search.user_id,
-          productName: search.product_name,
-          latitude: search.latitude,
-          longitude: search.longitude,
-          status: search.status,
-          selectedOfferId: search.selected_offer_id,
-          createdAt: search.created_at,
-          category: search.category,
-          maxPrice: search.max_price,
-        }));
+        const formattedSearches = response.data.searches
+          .map((search) => ({
+            id: search.id,
+            userId: search.user_id,
+            productName: search.product_name,
+            latitude: search.latitude,
+            longitude: search.longitude,
+            status: search.status,
+            selectedOfferId: search.selected_offer_id,
+            createdAt: search.created_at,
+            category: search.category,
+            maxPrice: search.max_price,
+          }))
+          .filter((search) => search.status === 'pending');
         setRequests(formattedSearches);
       } else {
         console.error('Error loading requests:', response.error);

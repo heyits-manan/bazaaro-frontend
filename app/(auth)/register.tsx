@@ -59,15 +59,18 @@ export default function Register() {
 
     setLoading(true);
     try {
-      const result = await register({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        phone: formData.phone || undefined,
-      }, isShopOwner);
+      const result = await register(
+        {
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          phone: formData.phone || undefined,
+        },
+        isShopOwner
+      );
 
       if (result.success) {
-        router.replace('/(tabs)');
+        router.replace('/(tabs)/search');
       } else {
         Alert.alert('Registration Failed', result.error || 'Please try again');
       }
@@ -84,13 +87,14 @@ export default function Register() {
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.header}>
             <Text style={styles.title}>
-              {isShopOwner ? 'Create Shop Owner Account' : 'Create Customer Account'}
+              {isShopOwner
+                ? 'Create Shop Owner Account'
+                : 'Create Customer Account'}
             </Text>
             <Text style={styles.subtitle}>
-              {isShopOwner 
+              {isShopOwner
                 ? 'Set up your store and start receiving customer requests'
-                : 'Join thousands of customers finding great deals nearby'
-              }
+                : 'Join thousands of customers finding great deals nearby'}
             </Text>
           </View>
 
@@ -125,7 +129,9 @@ export default function Register() {
             <Input
               label="Password"
               value={formData.password}
-              onChangeText={(text) => setFormData({ ...formData, password: text })}
+              onChangeText={(text) =>
+                setFormData({ ...formData, password: text })
+              }
               error={errors.password}
               placeholder="Create a password"
               isPassword
@@ -134,7 +140,9 @@ export default function Register() {
             <Input
               label="Confirm Password"
               value={formData.confirmPassword}
-              onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+              onChangeText={(text) =>
+                setFormData({ ...formData, confirmPassword: text })
+              }
               error={errors.confirmPassword}
               placeholder="Confirm your password"
               isPassword
@@ -150,11 +158,15 @@ export default function Register() {
 
           <View style={styles.footer}>
             <TouchableOpacity onPress={() => router.back()}>
-              <Text style={styles.backLink}>← Choose different account type</Text>
+              <Text style={styles.backLink}>
+                ← Choose different account type
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => router.push('/(auth)/login')}>
-              <Text style={styles.loginLink}>Already have an account? Sign in</Text>
+              <Text style={styles.loginLink}>
+                Already have an account? Sign in
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

@@ -1,26 +1,70 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { MapPin, Star, Clock } from 'lucide-react-native';
+import {
+  MapPin,
+  Star,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+} from 'lucide-react-native';
 import { Card } from './Card';
 import { Button } from './Button';
 import { Offer } from '../../types/api';
 
 interface OfferCardProps {
   offer: Offer;
-  onAccept: (offer: Offer) => void;
-  onReject: (offer: Offer) => void;
+  searchId: string;
+  onAccept: (offerId: number) => void;
+  onReject: (offerId: number) => void;
   onViewLocation: (offer: Offer) => void;
+  canAct: boolean; // whether user can accept/reject
 }
 
 export function OfferCard({
   offer,
+  searchId,
   onAccept,
   onReject,
   onViewLocation,
+  canAct,
 }: OfferCardProps) {
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const getStatusIcon = () => {
+    switch (offer.status) {
+      case 'accepted':
+        return <CheckCircle size={20} color="#10b981" />;
+      case 'rejected':
+        return <XCircle size={20} color="#ef4444" />;
+      default:
+        return <AlertCircle size={20} color="#f59e0b" />;
+    }
+  };
+
+  const getStatusColor = () => {
+    switch (offer.status) {
+      case 'accepted':
+        return '#10b981';
+      case 'rejected':
+        return '#ef4444';
+      default:
+        return '#f59e0b';
+    }
+  };
+
+  const getStatusText = () => {
+    switch (offer.status) {
+      case 'accepted':
+        return 'Accepted';
+      case 'rejected':
+        return 'Rejected';
+      default:
+        return 'Pending';
+    }
   };
 
   useEffect(() => {
@@ -39,10 +83,17 @@ export function OfferCard({
             </Text>
           </View>
         </View>
-        <View style={styles.timeContainer}>
-          <Clock size={14} color="#6b7280" />
-          <Text style={styles.time}>{formatTime(offer.createdAt)}</Text>
+        <View style={styles.statusContainer}>
+          {getStatusIcon()}
+          <Text style={[styles.statusText, { color: getStatusColor() }]}>
+            {getStatusText()}
+          </Text>
         </View>
+      </View>
+
+      <View style={styles.timeContainer}>
+        <Clock size={14} color="#6b7280" />
+        <Text style={styles.time}>{formatTime(offer.createdAt)}</Text>
       </View>
 
       <View style={styles.productInfo}>
@@ -60,21 +111,37 @@ export function OfferCard({
         <Text style={styles.locationText}>{offer.store.description}</Text>
       </TouchableOpacity>
 
-      <View style={styles.actions}>
-        <Button
-          title="Reject"
-          variant="outline"
-          size="small"
-          onPress={() => onReject(offer)}
-          style={styles.rejectButton}
-        />
-        <Button
-          title="Accept"
-          size="small"
-          onPress={() => onAccept(offer)}
-          style={styles.acceptButton}
-        />
-      </View>
+      {canAct && offer.status === 'pending' && (
+        <View style={styles.actions}>
+          <Button
+            title="Reject"
+            variant="outline"
+            size="small"
+            onPress={() => onReject(offer.id)}
+            style={styles.rejectButton}
+          />
+          <Button
+            title="Accept"
+            size="small"
+            onPress={() => onAccept(offer.id)}
+            style={styles.acceptButton}
+          />
+        </View>
+      )}
+
+      {offer.status === 'accepted' && (
+        <View style={styles.acceptedIndicator}>
+          <CheckCircle size={20} color="#10b981" />
+          <Text style={styles.acceptedText}>Offer Accepted</Text>
+        </View>
+      )}
+
+      {offer.status === 'rejected' && (
+        <View style={styles.rejectedIndicator}>
+          <XCircle size={20} color="#ef4444" />
+          <Text style={styles.rejectedText}>Offer Rejected</Text>
+        </View>
+      )}
     </Card>
   );
 }
@@ -108,9 +175,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
   },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusText: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+  },
   timeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 8,
   },
   time: {
     marginLeft: 4,
@@ -159,5 +236,35 @@ const styles = StyleSheet.create({
   },
   acceptButton: {
     flex: 1,
+  },
+  acceptedIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingVertical: 8,
+    backgroundColor: '#e0f2fe',
+    borderRadius: 8,
+  },
+  acceptedText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#10b981',
+    fontWeight: '600',
+  },
+  rejectedIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingVertical: 8,
+    backgroundColor: '#fef3f2',
+    borderRadius: 8,
+  },
+  rejectedText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#ef4444',
+    fontWeight: '600',
   },
 });

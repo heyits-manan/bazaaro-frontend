@@ -65,10 +65,36 @@ export default function Offers() {
       return;
     }
     console.log('Setting up real-time listeners for search ID:', searchId);
+
+    // Listen for new offers
     socketService.onNewOffer((offerData) => {
       console.log('Received new offer:', offerData);
       if (offerData.search_id === searchId) {
         setOffers((prev) => [...prev, offerData]);
+      }
+    });
+
+    // Listen for offer status updates
+    socketService.onOfferStatusUpdate((updateData) => {
+      console.log('Received offer status update:', updateData);
+      if (updateData.searchId === searchId) {
+        setOffers((prev) =>
+          prev.map((o) =>
+            o.id === updateData.offerId
+              ? { ...o, status: updateData.status }
+              : o
+          )
+        );
+      }
+    });
+
+    // Listen for search status updates
+    socketService.onSearchStatusUpdate((updateData) => {
+      console.log('Received search status update:', updateData);
+      if (updateData.searchId === searchId) {
+        // You might want to update the search status here
+        // or navigate to a different view
+        console.log('Search status updated:', updateData.status);
       }
     });
   };
@@ -106,28 +132,31 @@ export default function Offers() {
     setRefreshing(false);
   };
 
-  const handleAcceptOffer = async (offer: Offer) => {
+  const handleAcceptOffer = async (offerId: number) => {
     if (!searchId) return;
 
     try {
-      const response = await apiService.selectOffer(
-        searchId,
-        offer.id.toString()
-      );
+      const response = await apiService.acceptOffer(searchId, offerId);
       if (response.success) {
         Alert.alert(
           'Offer Accepted!',
-          `Your offer from ${offer.store.name} has been accepted. You can now view the store location.`,
+          `Your offer has been accepted. You can now view the store location.`,
           [
             { text: 'OK' },
-            { text: 'View Location', onPress: () => handleViewLocation(offer) },
+            {
+              text: 'View Location',
+              onPress: () => {
+                const acceptedOffer = offers.find((o) => o.id === offerId);
+                if (acceptedOffer) handleViewLocation(acceptedOffer);
+              },
+            },
           ]
         );
 
-        // Remove other offers and mark this one as accepted
+        // Update offer status to accepted and mark others as rejected
         setOffers((prev) =>
           prev.map((o) =>
-            o.id === offer.id
+            o.id === offerId
               ? { ...o, status: 'accepted' }
               : { ...o, status: 'rejected' }
           )
@@ -140,8 +169,22 @@ export default function Offers() {
     }
   };
 
-  const handleRejectOffer = (offer: Offer) => {
-    setOffers((prev) => prev.filter((o) => o.id !== offer.id));
+  const handleRejectOffer = async (offerId: number) => {
+    if (!searchId) return;
+
+    try {
+      const response = await apiService.rejectOffer(searchId, offerId);
+      if (response.success) {
+        // Update offer status to rejected
+        setOffers((prev) =>
+          prev.map((o) => (o.id === offerId ? { ...o, status: 'rejected' } : o))
+        );
+      } else {
+        Alert.alert('Error', response.error || 'Failed to reject offer');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Something went wrong. Please try again.');
+    }
   };
 
   const handleViewLocation = (offer: Offer) => {
@@ -216,11 +259,28 @@ export default function Offers() {
           <OfferCard
             key={offer.id}
             offer={offer}
-            onAccept={() => handleAcceptOffer(offer)}
-            onReject={() => handleRejectOffer(offer)}
-            onViewLocation={() => handleViewLocation(offer)}
+            searchId={searchId!}
+            onAccept={handleAcceptOffer}
+            onReject={handleRejectOffer}
+            onViewLocation={handleViewLocation}
+            canAct={true}
           />
         ))}
+
+        {/* Show rejected offers */}
+        {offers
+          .filter((offer) => offer.status === 'rejected')
+          .map((offer) => (
+            <OfferCard
+              key={offer.id}
+              offer={offer}
+              searchId={searchId!}
+              onAccept={handleAcceptOffer}
+              onReject={handleRejectOffer}
+              onViewLocation={handleViewLocation}
+              canAct={false}
+            />
+          ))}
       </ScrollView>
     </SafeAreaView>
   );

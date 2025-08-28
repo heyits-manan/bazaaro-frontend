@@ -41,6 +41,7 @@ export interface Search {
   createdAt: string;
   category?: string;
   maxPrice?: number;
+  offers?: Offer[];
 }
 
 export interface SearchResponse {
@@ -100,4 +101,41 @@ export interface NearbySearchesResponse {
 export interface OffersResponse {
   offers: Offer[];
   search: Search;
+}
+
+export interface UserSearchesResponse {
+  message: string;
+  searches: Search[];
+}
+
+export interface UserOffersResponse {
+  message: string;
+  offers: Offer[];
+}
+
+export interface StoreOffersResponse {
+  message: string;
+  offers: Offer[];
+}
+
+export interface StoreDetails {
+  message: string;
+  store: {
+    id: number;
+    name: string;
+    description: string;
+    latitude: string;
+    longitude: string;
+    rating: string;
+    isActive: boolean;
+    createdAt: string;
+    statistics: {
+      totalProducts: number;
+      activeProducts: number;
+      totalOffers: string;
+      acceptedOffers: string;
+      acceptanceRate: string;
+    };
+    products: Product[];
+  };
 }

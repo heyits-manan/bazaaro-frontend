@@ -10,6 +10,10 @@ import {
   Offer,
   ApiResponse,
   NearbySearchesResponse,
+  UserSearchesResponse,
+  UserOffersResponse,
+  StoreOffersResponse,
+  StoreDetails,
 } from '../types/api';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -155,6 +159,10 @@ class ApiService {
     });
   }
 
+  async getStoreDetails(): Promise<ApiResponse<StoreDetails>> {
+    return this.request<StoreDetails>('/store/details');
+  }
+
   // Search System
   async createSearch(
     searchData: SearchRequest
@@ -233,6 +241,37 @@ class ApiService {
         stock: data.stock,
       }),
     });
+  }
+
+  // New offer management functions
+  async acceptOffer(
+    searchId: string,
+    offerId: number
+  ): Promise<ApiResponse<any>> {
+    return this.request(`/search/${searchId}/offers/${offerId}/accept`, {
+      method: 'PUT',
+    });
+  }
+
+  async rejectOffer(
+    searchId: string,
+    offerId: number
+  ): Promise<ApiResponse<any>> {
+    return this.request(`/search/${searchId}/offers/${offerId}/reject`, {
+      method: 'PUT',
+    });
+  }
+
+  async getUserSearches(): Promise<ApiResponse<UserSearchesResponse>> {
+    return this.request<UserSearchesResponse>('/search/user/searches');
+  }
+
+  async getUserOffers(): Promise<ApiResponse<UserOffersResponse>> {
+    return this.request<UserOffersResponse>('/search/user/offers');
+  }
+
+  async getStoreOffers(): Promise<ApiResponse<StoreOffersResponse>> {
+    return this.request<StoreOffersResponse>('/store/offers');
   }
 }
 

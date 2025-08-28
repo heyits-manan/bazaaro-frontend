@@ -2,16 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
-import { Search as SearchIcon, MapPin, Filter } from 'lucide-react-native';
+import {
+  Search as SearchIcon,
+  MapPin,
+  Filter,
+  MessageCircle,
+  Clock,
+} from 'lucide-react-native';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { apiService } from '../../services/api';
 import { router } from 'expo-router';
 import { useSearch } from '../../contexts/SearchContext';
+import {
+  Search as SearchType,
+  Offer,
+  UserSearchesResponse,
+} from '../../types/api';
 
 export default function Search() {
-  const { setActiveSearchId } = useSearch();
+  const { activeSearchId, setActiveSearchId } = useSearch();
   const [searchQuery, setSearchQuery] = useState('');
   const [category, setCategory] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
@@ -24,10 +35,94 @@ export default function Search() {
   const [useManualLocation, setUseManualLocation] = useState(false);
   const [manualLatitude, setManualLatitude] = useState('');
   const [manualLongitude, setManualLongitude] = useState('');
+  const [currentSearch, setCurrentSearch] = useState<SearchType | null>(null);
+  const [currentOffers, setCurrentOffers] = useState<Offer[]>([]);
+  const [loadingOffers, setLoadingOffers] = useState(false);
 
   useEffect(() => {
     getCurrentLocation();
   }, []);
+
+  useEffect(() => {
+    if (activeSearchId) {
+      loadCurrentSearchDetails();
+    }
+  }, [activeSearchId]);
+
+  const loadCurrentSearchDetails = async () => {
+    if (!activeSearchId) return;
+
+    setLoadingOffers(true);
+    try {
+      // Load search details
+      const searchResponse = await apiService.getUserSearches();
+      console.log('Search response:', searchResponse);
+
+      if (searchResponse.success && searchResponse.data) {
+        // The API returns { message: "...", searches: [...] }
+        // So searchResponse.data.searches contains the array
+        const searches = searchResponse.data.searches;
+
+        if (searches && Array.isArray(searches)) {
+          const search = searches.find((s) => s.id === activeSearchId);
+          if (search) {
+            setCurrentSearch(search);
+            console.log('Found current search:', search);
+
+            // If the search already includes offers, use them
+            if (search.offers && Array.isArray(search.offers)) {
+              setCurrentOffers(search.offers);
+              console.log(
+                'Set offers from search response:',
+                search.offers.length
+              );
+              setLoadingOffers(false);
+              return; // No need to make another API call
+            }
+          } else {
+            console.log('Current search not found in user searches');
+          }
+        } else {
+          console.log(
+            'Unexpected search response structure:',
+            searchResponse.data
+          );
+        }
+      } else {
+        console.log('Search response not successful:', searchResponse.error);
+      }
+
+      // Only load offers separately if they weren't included in the search response
+      const offersResponse = await apiService.getOffers(activeSearchId);
+      console.log('Offers response:', offersResponse);
+
+      if (offersResponse.success && offersResponse.data) {
+        // Handle different possible response structures
+        const offers = offersResponse.data as any;
+
+        // If data is an array, use it directly
+        if (Array.isArray(offers)) {
+          setCurrentOffers(offers);
+          console.log('Set offers from array:', offers.length);
+        }
+        // If data has an offers property (like OffersResponse)
+        else if (offers.offers && Array.isArray(offers.offers)) {
+          setCurrentOffers(offers.offers);
+          console.log('Set offers from offers property:', offers.offers.length);
+        }
+        // If data has a different structure, log it for debugging
+        else {
+          console.log('Unexpected offers response structure:', offers);
+        }
+      } else {
+        console.log('Offers response not successful:', offersResponse.error);
+      }
+    } catch (error) {
+      console.error('Error loading search details:', error);
+    } finally {
+      setLoadingOffers(false);
+    }
+  };
 
   const getCurrentLocation = async () => {
     setLocationLoading(true);
@@ -236,6 +331,78 @@ export default function Search() {
             will be notified instantly{'\n'}• You'll receive offers in real-time
           </Text>
         </Card>
+
+        {/* Current Search Status */}
+        {currentSearch && (
+          <Card style={styles.currentSearchCard}>
+            <View style={styles.currentSearchHeader}>
+              <MessageCircle size={24} color="#6366f1" />
+              <Text style={styles.currentSearchTitle}>Current Search</Text>
+            </View>
+
+            <View style={styles.currentSearchInfo}>
+              <Text style={styles.currentSearchProduct}>
+                {currentSearch.productName}
+              </Text>
+              <View style={styles.currentSearchMeta}>
+                <Clock size={14} color="#6b7280" />
+                <Text style={styles.currentSearchTime}>
+                  {new Date(currentSearch.createdAt).toLocaleDateString()}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.currentSearchStatus}>
+              <Text style={styles.statusLabel}>Status:</Text>
+              <Text
+                style={[
+                  styles.statusValue,
+                  {
+                    color:
+                      currentSearch.status === 'completed'
+                        ? '#10b981'
+                        : currentSearch.status === 'cancelled'
+                        ? '#ef4444'
+                        : '#f59e0b',
+                  },
+                ]}
+              >
+                {currentSearch.status === 'completed'
+                  ? 'Completed'
+                  : currentSearch.status === 'cancelled'
+                  ? 'Cancelled'
+                  : 'Pending'}
+              </Text>
+            </View>
+
+            {currentOffers.length > 0 && (
+              <View style={styles.offersSummary}>
+                <Text style={styles.offersLabel}>
+                  {currentOffers.length} offer
+                  {currentOffers.length !== 1 ? 's' : ''} received
+                </Text>
+                <Button
+                  title="View All Offers"
+                  onPress={() =>
+                    router.push(`/(tabs)/offers?searchId=${activeSearchId}`)
+                  }
+                  size="small"
+                  style={styles.viewOffersButton}
+                />
+              </View>
+            )}
+
+            {currentSearch.status === 'pending' && (
+              <Button
+                title="View Offers"
+                onPress={() =>
+                  router.push(`/(tabs)/offers?searchId=${activeSearchId}`)
+                }
+                style={styles.viewOffersButton}
+              />
+            )}
+          </Card>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -319,5 +486,68 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#0369a1',
     lineHeight: 20,
+  },
+  currentSearchCard: {
+    marginTop: 16,
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#e0f2fe',
+  },
+  currentSearchHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  currentSearchTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginLeft: 8,
+  },
+  currentSearchInfo: {
+    marginBottom: 12,
+  },
+  currentSearchProduct: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  currentSearchMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  currentSearchTime: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginLeft: 4,
+  },
+  currentSearchStatus: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statusLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  statusValue: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  offersSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  offersLabel: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  viewOffersButton: {
+    alignSelf: 'flex-end',
   },
 });
