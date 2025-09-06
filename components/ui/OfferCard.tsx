@@ -75,11 +75,15 @@ export function OfferCard({
     <Card style={styles.container}>
       <View style={styles.header}>
         <View style={styles.storeInfo}>
-          <Text style={styles.storeName}>{offer.store.name}</Text>
+          <Text style={styles.storeName}>
+            {offer.store?.name || `Store #${offer.storeId}`}
+          </Text>
           <View style={styles.rating}>
             <Star size={16} color="#fbbf24" fill="#fbbf24" />
             <Text style={styles.ratingText}>
-              {parseFloat(offer.store.rating).toFixed(1)}
+              {offer.store?.rating
+                ? parseFloat(offer.store.rating).toFixed(1)
+                : 'N/A'}
             </Text>
           </View>
         </View>
@@ -108,7 +112,9 @@ export function OfferCard({
         onPress={() => onViewLocation(offer)}
       >
         <MapPin size={16} color="#6366f1" />
-        <Text style={styles.locationText}>{offer.store.description}</Text>
+        <Text style={styles.locationText}>
+          {offer.store?.description || 'View store location'}
+        </Text>
       </TouchableOpacity>
 
       {canAct && offer.status === 'pending' && (

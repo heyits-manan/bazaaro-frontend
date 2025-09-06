@@ -139,3 +139,81 @@ export interface StoreDetails {
     products: Product[];
   };
 }
+
+// WebSocket Event Types
+export interface WebSocketEvents {
+  // Connection events
+  connect: () => void;
+  disconnect: () => void;
+  connect_error: (error: Error) => void;
+
+  // Customer events
+  'offers:new': (data: NewOfferEvent) => void;
+  'offer:accepted': (data: OfferStatusEvent) => void;
+  'offer:rejected': (data: OfferStatusEvent) => void;
+  'search:status_update': (data: SearchStatusEvent) => void;
+
+  // Store owner events
+  'search:incoming': (data: IncomingSearchEvent) => void;
+  'offer:status_update': (data: OfferStatusEvent) => void;
+
+  // General events
+  ping: (data: { message: string }) => void;
+  pong: (data: { message: string }) => void;
+}
+
+// WebSocket Event Data Interfaces
+export interface NewOfferEvent {
+  searchId: string;
+  offer: Offer;
+}
+
+export interface IncomingSearchEvent {
+  searchId: string;
+  productName: string;
+  latitude: number;
+  longitude: number;
+  category?: string;
+  maxPrice?: number;
+  distance?: number;
+}
+
+export interface OfferStatusEvent {
+  offerId: number;
+  searchId: string;
+  status: 'accepted' | 'rejected';
+  storeId?: number;
+}
+
+export interface SearchStatusEvent {
+  searchId: string;
+  status: 'completed' | 'cancelled';
+  selectedOfferId?: string;
+}
+
+// WebSocket Connection State
+export interface WebSocketState {
+  isConnected: boolean;
+  isConnecting: boolean;
+  error: string | null;
+  lastConnected: Date | null;
+  reconnectAttempts: number;
+}
+
+// WebSocket Service Interface
+export interface WebSocketService {
+  connect: () => Promise<void>;
+  disconnect: () => void;
+  isConnected: () => boolean;
+  emit: (event: string, data?: any) => void;
+  on: <K extends keyof WebSocketEvents>(
+    event: K,
+    callback: WebSocketEvents[K]
+  ) => void;
+  off: <K extends keyof WebSocketEvents>(
+    event: K,
+    callback?: WebSocketEvents[K]
+  ) => void;
+  removeAllListeners: () => void;
+  getState: () => WebSocketState;
+}

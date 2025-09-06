@@ -18,12 +18,13 @@ import {
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { socketService } from '../../services/socket';
 import { apiService } from '../../services/api';
 import * as Location from 'expo-location';
 import { Search } from '../../types/api';
 import { Redirect } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
+import { useStoreOwnerSearchWebSocket } from '../../hooks/useSearchWebSocket';
+import { useWebSocketConnection } from '../../hooks/useWebSocket';
 
 // Function to calculate distance between two points using Haversine formula
 const calculateDistance = (
@@ -47,6 +48,10 @@ const calculateDistance = (
 
 export default function Requests() {
   const { user, loading } = useAuth();
+  const { isConnected } = useWebSocketConnection();
+  const { incomingSearches, removeIncomingSearch } =
+    useStoreOwnerSearchWebSocket();
+
   if (loading) return null;
   if (!user || user.role !== 'shop_owner') {
     return <Redirect href="/(tabs)/search" />;
@@ -66,12 +71,25 @@ export default function Requests() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    setupRealTimeListeners();
     getCurrentLocation();
-    return () => {
-      socketService.removeAllListeners();
-    };
   }, []);
+
+  // Convert incoming searches to requests format
+  useEffect(() => {
+    const convertedRequests = incomingSearches.map((searchData) => ({
+      id: searchData.searchId,
+      userId: 0, // We don't have userId in incoming search data
+      productName: searchData.productName,
+      latitude: searchData.latitude.toString(),
+      longitude: searchData.longitude.toString(),
+      status: 'pending' as const,
+      selectedOfferId: null,
+      createdAt: new Date().toISOString(),
+      category: searchData.category,
+      maxPrice: searchData.maxPrice,
+    }));
+    setRequests(convertedRequests);
+  }, [incomingSearches]);
 
   const getCurrentLocation = async () => {
     try {
@@ -90,26 +108,6 @@ export default function Requests() {
     } catch (error) {
       Alert.alert('Error', 'Failed to get current location');
     }
-  };
-
-  const setupRealTimeListeners = () => {
-    socketService.onNewSearch((searchData) => {
-      // Transform the incoming socket data to match the Search type
-      const newSearch = {
-        id: searchData.id,
-        userId: searchData.userId || searchData.user_id,
-        productName: searchData.productName || searchData.product_name,
-        latitude: searchData.latitude,
-        longitude: searchData.longitude,
-        status: searchData.status,
-        selectedOfferId:
-          searchData.selectedOfferId || searchData.selected_offer_id,
-        createdAt: searchData.createdAt || searchData.created_at,
-        category: searchData.category,
-        maxPrice: searchData.maxPrice || searchData.max_price,
-      };
-      setRequests((prev) => [newSearch, ...prev]);
-    });
   };
 
   const loadRequests = async (currentLocation: Location.LocationObject) => {
@@ -179,7 +177,7 @@ export default function Requests() {
         setOfferData({ price: '', eta: '', stock: '' });
 
         // Remove the request from the list
-        setRequests((prev) => prev.filter((r) => r.id !== requestId));
+        removeIncomingSearch(requestId);
       } else {
         Alert.alert('Error', response.error || 'Failed to send offer');
       }
@@ -207,6 +205,16 @@ export default function Requests() {
           <Text style={styles.subtitle}>
             Respond to nearby customer searches within 5 km
           </Text>
+          <View style={styles.connectionStatus}>
+            <Text
+              style={[
+                styles.connectionText,
+                { color: isConnected ? '#10b981' : '#ef4444' },
+              ]}
+            >
+              {isConnected ? 'Real-time enabled' : 'Offline mode'}
+            </Text>
+          </View>
         </View>
 
         {requests.length === 0 && (
@@ -346,6 +354,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6b7280',
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  connectionStatus: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 16,
+    alignSelf: 'center',
+  },
+  connectionText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   emptyCard: {
     alignItems: 'center',

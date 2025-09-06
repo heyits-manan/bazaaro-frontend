@@ -1,97 +1,226 @@
 import { io, Socket } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  WebSocketEvents,
+  WebSocketState,
+  WebSocketService,
+  NewOfferEvent,
+  IncomingSearchEvent,
+  OfferStatusEvent,
+  SearchStatusEvent,
+} from '../types/api';
 
-const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL;
+const SOCKET_URL =
+  process.env.EXPO_PUBLIC_SOCKET_URL || 'http://localhost:3000';
 
-class SocketService {
+class SocketService implements WebSocketService {
   private socket: Socket | null = null;
   private pendingListeners: Array<() => void> = [];
+  private state: WebSocketState = {
+    isConnected: false,
+    isConnecting: false,
+    error: null,
+    lastConnected: null,
+    reconnectAttempts: 0,
+  };
+  private maxReconnectAttempts = 5;
+  private reconnectDelay = 1000; // Start with 1 second
 
-  async connect() {
-    const token = await AsyncStorage.getItem('token');
+  async connect(): Promise<void> {
+    if (this.state.isConnecting || this.state.isConnected) {
+      return;
+    }
 
-    this.socket = io(SOCKET_URL, {
-      auth: {
-        token,
-      },
-    });
+    try {
+      this.state.isConnecting = true;
+      this.state.error = null;
 
-    this.socket.on('connect', () => {
-      console.log('Connected to server');
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      this.socket = io(SOCKET_URL, {
+        auth: { token },
+        transports: ['websocket', 'polling'],
+        timeout: 20000,
+        reconnection: true,
+        reconnectionAttempts: this.maxReconnectAttempts,
+        reconnectionDelay: this.reconnectDelay,
+      });
+
+      this.setupEventListeners();
+
       // Register any pending listeners
       this.pendingListeners.forEach((fn) => fn());
       this.pendingListeners = [];
-    });
-
-    this.socket.on('disconnect', () => {
-      console.log('Disconnected from server');
-    });
-
-    return this.socket;
+    } catch (error) {
+      this.state.error =
+        error instanceof Error ? error.message : 'Connection failed';
+      this.state.isConnecting = false;
+      throw error;
+    }
   }
 
-  disconnect() {
+  private setupEventListeners() {
+    if (!this.socket) return;
+
+    this.socket.on('connect', () => {
+      console.log('✅ WebSocket connected successfully');
+      this.state.isConnected = true;
+      this.state.isConnecting = false;
+      this.state.error = null;
+      this.state.lastConnected = new Date();
+      this.state.reconnectAttempts = 0;
+    });
+
+    this.socket.on('disconnect', (reason) => {
+      console.log('❌ WebSocket disconnected:', reason);
+      this.state.isConnected = false;
+      this.state.isConnecting = false;
+    });
+
+    this.socket.on('connect_error', (error) => {
+      console.error('❌ WebSocket connection error:', error);
+      this.state.error = error.message;
+      this.state.isConnecting = false;
+      this.state.reconnectAttempts++;
+    });
+
+    this.socket.on('reconnect', (attemptNumber) => {
+      console.log(`🔄 WebSocket reconnected after ${attemptNumber} attempts`);
+      this.state.reconnectAttempts = 0;
+    });
+
+    this.socket.on('reconnect_error', (error) => {
+      console.error('❌ WebSocket reconnection error:', error);
+      this.state.error = error.message;
+    });
+
+    this.socket.on('reconnect_failed', () => {
+      console.error('❌ WebSocket reconnection failed after maximum attempts');
+      this.state.error = 'Failed to reconnect after maximum attempts';
+    });
+  }
+
+  disconnect(): void {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
+    this.state.isConnected = false;
+    this.state.isConnecting = false;
+    this.state.error = null;
+    this.pendingListeners = [];
   }
 
-  // Listen for new search notifications (for shop owners)
-  onNewSearch(callback: (searchData: any) => void) {
-    if (this.socket) {
-      this.socket.on('new_search', callback);
+  isConnected(): boolean {
+    return this.state.isConnected && this.socket?.connected === true;
+  }
+
+  emit(event: string, data?: any): void {
+    if (this.socket && this.isConnected()) {
+      this.socket.emit(event, data);
     } else {
-      this.pendingListeners.push(() => this.onNewSearch(callback));
+      console.warn(`Cannot emit event '${event}': Socket not connected`);
     }
   }
 
-  // Listen for new offers (for users)
-  onNewOffer(callback: (offerData: any) => void) {
+  on<K extends keyof WebSocketEvents>(
+    event: K,
+    callback: WebSocketEvents[K]
+  ): void {
     if (this.socket) {
-      this.socket.on('new_offer', callback);
+      this.socket.on(event as string, callback as any);
     } else {
-      this.pendingListeners.push(() => this.onNewOffer(callback));
+      this.pendingListeners.push(() => this.on(event, callback));
     }
   }
 
-  // Listen for offer selection notifications (for shop owners)
-  onOfferSelected(callback: (selectionData: any) => void) {
+  off<K extends keyof WebSocketEvents>(
+    event: K,
+    callback?: WebSocketEvents[K]
+  ): void {
     if (this.socket) {
-      this.socket.on('offer_selected', callback);
-    } else {
-      this.pendingListeners.push(() => this.onOfferSelected(callback));
+      if (callback) {
+        this.socket.off(event as string, callback as any);
+      } else {
+        this.socket.removeAllListeners(event as string);
+      }
     }
   }
 
-  // Listen for offer status updates (accepted/rejected)
-  onOfferStatusUpdate(callback: (updateData: any) => void) {
-    if (this.socket) {
-      this.socket.on('offer_status_update', callback);
-    } else {
-      this.pendingListeners.push(() => this.onOfferStatusUpdate(callback));
-    }
-  }
-
-  // Listen for search status updates (completed/cancelled)
-  onSearchStatusUpdate(callback: (updateData: any) => void) {
-    if (this.socket) {
-      this.socket.on('search_status_update', callback);
-    } else {
-      this.pendingListeners.push(() => this.onSearchStatusUpdate(callback));
-    }
-  }
-
-  // Remove listeners
-  removeAllListeners() {
+  removeAllListeners(): void {
     if (this.socket) {
       this.socket.removeAllListeners();
     }
     this.pendingListeners = [];
   }
 
-  getSocket() {
-    return this.socket;
+  getState(): WebSocketState {
+    return { ...this.state };
+  }
+
+  // Convenience methods for specific events
+  onNewOffer(callback: (data: NewOfferEvent) => void): void {
+    this.on('offers:new', callback);
+  }
+
+  onIncomingSearch(callback: (data: IncomingSearchEvent) => void): void {
+    this.on('search:incoming', callback);
+  }
+
+  onOfferAccepted(callback: (data: OfferStatusEvent) => void): void {
+    this.on('offer:accepted', callback);
+  }
+
+  onOfferRejected(callback: (data: OfferStatusEvent) => void): void {
+    this.on('offer:rejected', callback);
+  }
+
+  onSearchStatusUpdate(callback: (data: SearchStatusEvent) => void): void {
+    this.on('search:status_update', callback);
+  }
+
+  onOfferStatusUpdate(callback: (data: OfferStatusEvent) => void): void {
+    this.on('offer:status_update', callback);
+  }
+
+  // Test connection with ping-pong
+  testConnection(): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (!this.isConnected()) {
+        resolve(false);
+        return;
+      }
+
+      const testMessage = `test-${Date.now()}`;
+      let resolved = false;
+
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve(false);
+        }
+      }, 5000);
+
+      this.socket?.on('pong', (data: { message: string }) => {
+        if (data.message === testMessage && !resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          resolve(true);
+        }
+      });
+
+      this.emit('ping', { message: testMessage });
+    });
+  }
+
+  // Reconnect manually
+  async reconnect(): Promise<void> {
+    this.disconnect();
+    await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second
+    await this.connect();
   }
 }
 

@@ -8,7 +8,6 @@ import React, {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types/api';
 import { apiService } from '../services/api';
-import { socketService } from '../services/socket';
 
 interface AuthContextType {
   user: User | null;
@@ -42,7 +41,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (token && userData) {
         setUser(JSON.parse(userData));
-        await socketService.connect();
       }
     } catch (error) {
       console.error('Error checking auth state:', error);
@@ -59,7 +57,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await AsyncStorage.setItem('token', response.data.token);
         await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
         setUser(response.data.user);
-        await socketService.connect();
         return { success: true };
       }
 
@@ -79,7 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await AsyncStorage.setItem('token', response.data.token);
         await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
         setUser(response.data.user);
-        await socketService.connect();
         return { success: true };
       }
 
@@ -91,7 +87,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await apiService.logout();
-    socketService.disconnect();
     setUser(null);
   };
 

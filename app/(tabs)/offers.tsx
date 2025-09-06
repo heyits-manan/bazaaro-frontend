@@ -14,21 +14,29 @@ import { MessageCircle, Clock, MapPin } from 'lucide-react-native';
 import { OfferCard } from '../../components/ui/OfferCard';
 import { Card } from '../../components/ui/Card';
 import { apiService } from '../../services/api';
-import { socketService } from '../../services/socket';
 import { Offer } from '../../types/api';
 import { useSearch } from '../../contexts/SearchContext';
+import { useCustomerSearchWebSocket } from '../../hooks/useSearchWebSocket';
+import { useWebSocketConnection } from '../../hooks/useWebSocket';
 
 export default function Offers() {
   const { searchId: paramSearchId } = useLocalSearchParams<{
     searchId?: string;
   }>();
   const { activeSearchId, setActiveSearchId } = useSearch();
-  const [offers, setOffers] = useState<Offer[]>([]);
+  const { isConnected } = useWebSocketConnection();
+  const { getOffersForSearch, getActiveSearch, addSearch } =
+    useCustomerSearchWebSocket();
+
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   // Use either the param search ID or the active search ID
   const searchId = paramSearchId || activeSearchId;
+
+  // Get offers from WebSocket hook
+  const offers = searchId ? getOffersForSearch(searchId) : [];
+  const currentSearch = searchId ? getActiveSearch(searchId) : null;
 
   useEffect(() => {
     console.log('Search ID from params:', paramSearchId);
@@ -49,55 +57,25 @@ export default function Offers() {
       console.log('Loading offers for search ID:', searchId);
       loadOffers();
 
-      setupRealTimeListeners();
+      // Add search to WebSocket tracking if not already tracked
+      if (!currentSearch) {
+        // Create a basic search object for WebSocket tracking
+        const searchData = {
+          id: searchId,
+          userId: 1, // This should come from auth context
+          productName: 'Search in progress',
+          latitude: '0',
+          longitude: '0',
+          status: 'pending' as const,
+          selectedOfferId: null,
+          createdAt: new Date().toISOString(),
+        };
+        addSearch(searchData);
+      }
     } else {
       console.log('No search ID available, skipping offer loading');
     }
-
-    return () => {
-      socketService.removeAllListeners();
-    };
-  }, [searchId]);
-
-  const setupRealTimeListeners = () => {
-    if (!searchId) {
-      console.log('No search ID available for real-time listeners');
-      return;
-    }
-    console.log('Setting up real-time listeners for search ID:', searchId);
-
-    // Listen for new offers
-    socketService.onNewOffer((offerData) => {
-      console.log('Received new offer:', offerData);
-      if (offerData.search_id === searchId) {
-        setOffers((prev) => [...prev, offerData]);
-      }
-    });
-
-    // Listen for offer status updates
-    socketService.onOfferStatusUpdate((updateData) => {
-      console.log('Received offer status update:', updateData);
-      if (updateData.searchId === searchId) {
-        setOffers((prev) =>
-          prev.map((o) =>
-            o.id === updateData.offerId
-              ? { ...o, status: updateData.status }
-              : o
-          )
-        );
-      }
-    });
-
-    // Listen for search status updates
-    socketService.onSearchStatusUpdate((updateData) => {
-      console.log('Received search status update:', updateData);
-      if (updateData.searchId === searchId) {
-        // You might want to update the search status here
-        // or navigate to a different view
-        console.log('Search status updated:', updateData.status);
-      }
-    });
-  };
+  }, [searchId, currentSearch, addSearch]);
 
   const loadOffers = async () => {
     if (!searchId) {
@@ -111,15 +89,14 @@ export default function Offers() {
       const response = await apiService.getOffers(searchId);
       console.log('Offers response:', response);
       if (response.success && response.data) {
-        console.log('Setting offers:', response.data);
-        setOffers((response.data as any)?.offers || response.data || []);
+        console.log('Offers loaded from API:', response.data);
+        // The offers will be automatically managed by the WebSocket hook
+        // We just need to trigger the API call to get initial data
       } else {
         console.error('Failed to load offers:', response.error);
-        setOffers([]);
       }
     } catch (error) {
       console.error('Error loading offers:', error);
-      setOffers([]);
     } finally {
       setLoading(false);
     }
@@ -153,14 +130,8 @@ export default function Offers() {
           ]
         );
 
-        // Update offer status to accepted and mark others as rejected
-        setOffers((prev) =>
-          prev.map((o) =>
-            o.id === offerId
-              ? { ...o, status: 'accepted' }
-              : { ...o, status: 'rejected' }
-          )
-        );
+        // The WebSocket hook will automatically update the offer status
+        // No need to manually update state
       } else {
         Alert.alert('Error', response.error || 'Failed to accept offer');
       }
@@ -175,10 +146,8 @@ export default function Offers() {
     try {
       const response = await apiService.rejectOffer(searchId, offerId);
       if (response.success) {
-        // Update offer status to rejected
-        setOffers((prev) =>
-          prev.map((o) => (o.id === offerId ? { ...o, status: 'rejected' } : o))
-        );
+        // The WebSocket hook will automatically update the offer status
+        // No need to manually update state
       } else {
         Alert.alert('Error', response.error || 'Failed to reject offer');
       }
@@ -188,8 +157,15 @@ export default function Offers() {
   };
 
   const handleViewLocation = (offer: Offer) => {
-    const url = `https://www.google.com/maps/search/?api=1&query=${offer.store.latitude},${offer.store.longitude}`;
-    Linking.openURL(url);
+    if (offer.store?.latitude && offer.store?.longitude) {
+      const url = `https://www.google.com/maps/search/?api=1&query=${offer.store.latitude},${offer.store.longitude}`;
+      Linking.openURL(url);
+    } else {
+      Alert.alert(
+        'Location Unavailable',
+        'Store location information is not available for this offer.'
+      );
+    }
   };
 
   const pendingOffers = offers.filter((offer) => offer.status === 'pending');
@@ -211,6 +187,18 @@ export default function Offers() {
               ? 'Real-time offers from nearby stores'
               : 'Your search offers will appear here'}
           </Text>
+          {searchId && (
+            <View style={styles.connectionStatus}>
+              <Text
+                style={[
+                  styles.connectionText,
+                  { color: isConnected ? '#10b981' : '#ef4444' },
+                ]}
+              >
+                {isConnected ? 'Live updates enabled' : 'Offline mode'}
+              </Text>
+            </View>
+          )}
         </View>
 
         {!searchId && (
@@ -227,7 +215,9 @@ export default function Offers() {
         {searchId && acceptedOffer && (
           <Card style={styles.acceptedCard}>
             <Text style={styles.acceptedTitle}>✅ Offer Accepted!</Text>
-            <Text style={styles.acceptedStore}>{acceptedOffer.store.name}</Text>
+            <Text style={styles.acceptedStore}>
+              {acceptedOffer.store?.name || `Store #${acceptedOffer.storeId}`}
+            </Text>
             <Text style={styles.acceptedProduct}>
               Stock: {acceptedOffer.stock} - $
               {parseFloat(acceptedOffer.price).toFixed(2)}
@@ -235,7 +225,7 @@ export default function Offers() {
             <View style={styles.locationContainer}>
               <MapPin size={16} color="#059669" />
               <Text style={styles.locationText}>
-                {acceptedOffer.store.description}
+                {acceptedOffer.store?.description || 'View store location'}
               </Text>
             </View>
           </Card>
@@ -309,6 +299,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6b7280',
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  connectionStatus: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 16,
+    alignSelf: 'center',
+  },
+  connectionText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   emptyCard: {
     alignItems: 'center',
